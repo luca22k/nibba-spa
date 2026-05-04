@@ -71,7 +71,7 @@ export function BookingForm({ open, onClose, existing, branches, defaultBranchId
   });
   const [isHome, setIsHome] = useState<boolean>(existing?.is_home_service ?? false);
   const [roomId, setRoomId] = useState<string>(existing?.room_id ?? "");
-  const [address, setAddress] = useState({
+  const [address, setAddress] = useState<{ region: string|null; province: string|null; city: string|null; barangay: string|null; line1: string|null; line2: string|null }>({
     region: existing?.address_region ?? null,
     province: existing?.address_province ?? null,
     city: existing?.address_city ?? null,
