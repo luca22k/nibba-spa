@@ -174,9 +174,12 @@ function CustomerDialog({ existing, therapists, onClose, onSaved }: { existing: 
           </div>
           <div>
             <Label className="text-xs">Preferred therapist</Label>
-            <Select value={preferred} onValueChange={setPreferred}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent>{therapists.map((t) => <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>)}</SelectContent>
+            <Select value={preferred || "__na"} onValueChange={(v) => setPreferred(v === "__na" ? "" : v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__na">N/A</SelectItem>
+                {therapists.map((t) => <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>)}
+              </SelectContent>
             </Select>
           </div>
           <label className="flex items-center gap-2 text-sm">

@@ -71,7 +71,7 @@ export function BookingForm({ open, onClose, existing, branches, defaultBranchId
   });
   const [isHome, setIsHome] = useState<boolean>(existing?.is_home_service ?? false);
   const [roomId, setRoomId] = useState<string>(existing?.room_id ?? "");
-  const [address, setAddress] = useState<{ region: string|null; province: string|null; city: string|null; barangay: string|null; line1: string|null; line2: string|null }>({
+  const [address, setAddress] = useState<import("@/lib/address").PHAddress>({
     region: existing?.address_region ?? null,
     province: existing?.address_province ?? null,
     city: existing?.address_city ?? null,
@@ -313,9 +313,10 @@ export function BookingForm({ open, onClose, existing, branches, defaultBranchId
                       <Input type="email" value={creatingNew.email} onChange={(e) => setCreatingNew({ ...creatingNew, email: e.target.value })} />
                     </Field>
                     <Field label="Preferred therapist">
-                      <Select value={creatingNew.preferred_therapist_id} onValueChange={(v) => setCreatingNew({ ...creatingNew, preferred_therapist_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                      <Select value={creatingNew.preferred_therapist_id || "__na"} onValueChange={(v) => setCreatingNew({ ...creatingNew, preferred_therapist_id: v === "__na" ? "" : v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="__na">N/A</SelectItem>
                           {therapists.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>)}
                         </SelectContent>
                       </Select>
@@ -447,7 +448,7 @@ export function BookingForm({ open, onClose, existing, branches, defaultBranchId
               <div>
                 <SectionTitle>Therapist lineup</SectionTitle>
                 <p className="text-xs text-muted-foreground mb-2">Recommended order based on availability, skills and rotation.</p>
-                <TherapistLineupPanel branchId={branchId || null} serviceId={serviceId || null} date={date} selectedId={therapistId || null} onSelect={setTherapistId} />
+                <TherapistLineupPanel branchId={branchId || null} serviceId={serviceId || null} date={date} isHomeService={isHome} selectedId={therapistId || null} onSelect={setTherapistId} />
               </div>
               <Separator />
               <div className="rounded-md border p-3 bg-muted/20">

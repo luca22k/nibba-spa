@@ -1,95 +1,137 @@
-# V1 MVP Fix & Update Plan
+# V1 Revision Plan
 
-Focused updates on the existing app — keep current schema, auth, RBAC, and design. Only add/modify what the spec requires.
+Targeted updates to the existing app — no rebuild. Keep current schema/auth/RLS/design and only add or change what's listed.
 
-## 1. Database Schema Changes (migration)
+## 0. Fix outstanding build error & routing
 
-New columns / tables:
-- `services.duration_options` removed-fixed → add table **`service_durations`** (`id`, `service_id`, `duration_minutes`, `price`, `is_active`).
-- New table **`service_addons`** (`id`, `name`, `price`, `is_active`, `description`) — global add-ons (or `branch_id` nullable for future).
-- New table **`booking_addons`** (`id`, `booking_id`, `addon_id`, `price`).
-- `bookings`: add `duration_minutes`, `total_amount`, structured Home Service address columns: `address_region`, `address_province`, `address_city`, `address_barangay`, `address_line1`, `address_line2`.
-- `customers`: add `has_allergy boolean default false`, `duplicate_override_note text`.
-- New tables for PH address seed: **`ph_regions`**, **`ph_provinces`**, **`ph_cities`**, **`ph_barangays`** with parent FKs. Seed sample (NCR + 2 provinces, ~5 cities, ~10 barangays each) — design supports full dataset import later.
-- `rooms`: already has `name`, `branch_id`, `is_active`. Add `notes text`.
-- Update `booking_status` enum: drop `pending`. Migration: update existing `pending` rows to `confirmed`, then `ALTER TYPE` rebuild without `pending`.
-- Triggers/audit: extend `write_audit` triggers to cover new tables (`rooms`, `service_durations`, `service_addons`, `customers`, `attendance_records`, `therapist_schedules`, `admin_permissions`).
-- RLS for new tables follows existing patterns (`has_permission` for services_pricing/customers/bookings).
+- `src/components/booking/BookingForm.tsx`: the `PHAddressFields` `onChange` expects `PHAddress` (with optional fields) but it's wired to a `setState` whose state has all-required strings. Fix by typing the local address state as `PHAddress` (or wrap in `(next) => setAddress({ region: '', province: '', city: '', barangay: '', line1: '', line2: '', ...next })`).
+- `src/App.tsx`: route `/queue` and `/schedule` to the dedicated `TherapistQueue` and `TherapistSchedulePage` files (currently re-exported via `SimplePages`). Verify `Customers`, `Attendance`, `Services`, `Settings`, `AuditLog` pages route to their dedicated files, not stubs.
 
-## 2. Dashboard (`src/pages/Dashboard.tsx`)
-- Remove Customers metric card.
-- Remove Recent Activity section (data now lives only in Audit Log).
-- **Top Services** chart: add date-range filter (Today / This week / Past 2 weeks / This month / All time / Custom via shadcn Calendar Popover). Toggle metric: Bookings count vs Revenue.
-- **Today's Gantt**: new component `TodayGantt.tsx` showing horizontal time axis (branch open→close), one row per therapist, blocks for bookings (color by status), break overlay, off-duty/absent state, room + service tooltips. Pulls `bookings` + `therapist_schedules` + `attendance_records` for today. Realtime subscribe.
-- **Today's Bookings** list: add filter bar (Branch, Therapist, Service, Customer search, Status, Payment status, Room, Booking type).
+## 1. Shared therapist recommendation engine
 
-## 3. Bookings (`src/pages/Bookings.tsx` + new `BookingForm.tsx`)
-Refactor the create/edit dialog into a multi-section form:
-- **Customer search input** (Combobox): typeahead against `customers` (name/phone fuzzy). Inline "Create new" panel with: full name, mobile (+63 prefix locked, strip leading 0, digits only), email, allergy checkbox + details, preferred therapist, notes. Customer NOT persisted until confirmation modal accepted.
-- **Duplicate detection** on inline create: query phone exact + name ILIKE; if matches → show suggestion list and require either selecting existing OR ticking "Create as new" with a required override note (saved to `customers.duplicate_override_note`).
-- **Service + Duration**: select service → load `service_durations` → pick duration (price auto-fills).
-- **Add-ons**: multi-select chips from `service_addons` where `is_active`. Total = duration price + sum(addons).
-- **Therapist Lineup panel**: live ranked list of therapists for selected service+date+time using rules from §3 below; click to assign.
-- **Room vs Home Service**: toggle. If Home Service → show structured PH address (Region → Province → City → Barangay dependent dropdowns + line1/2). Else → room dropdown filtered by branch.
-- **Status** options: Confirmed, In Progress, Completed, Cancelled, No-show.
-- **Required-field validation** before opening confirmation.
-- **Confirmation Modal**: summary of all fields + Total. Only on Confirm: insert/update customer, insert booking + booking_addons, write audit.
+Create `src/lib/recommendation.ts` exporting a single ranking function used by **both** Booking form lineup and Therapist Queue. Replaces ad-hoc logic in `src/lib/lineup.ts` (kept as thin wrapper).
 
-## 4. Therapist Queue (`src/pages/TherapistQueue.tsx` — replace stub)
-Visual lineup view:
-- Cards per therapist showing avatar/initials, status badge (available/booked/break/off/absent), today's booking count, yesterday's commission, next-free-time, rank #.
-- Bar chart (recharts) of sales/commission yesterday.
-- Availability mini-timeline strip for today.
-- **Filters**: Branch, Service, Availability, Attendance status, Date range.
-- **"Recommend lineup based on"**: Performance / Attendance / Time Availability / Rotation Fairness / Current Booking Load.
-- **Sort order**: High→Low / Low→High.
-- Excludes therapists who are absent/clocked-out/off-duty from "recommended" list (still listed but greyed).
-- Logic implemented client-side from joined data; reuses helpers shared with Booking lineup.
+Inputs: therapists + their schedules/skills/attendance/today's bookings + payments (yesterday/range) + branch + service + booking time + isHomeService.
 
-## 5. Therapist Schedule (`src/pages/TherapistSchedulePage.tsx` — replace stub)
-- Day view Gantt (same component as Dashboard, larger). Date picker.
-- Side panel to edit weekly schedule per therapist: working days, off days, start/end, break, branch, skills (multi-select services). Saves to `therapist_schedules` and `therapist_skills`.
-- Sync: changes immediately reflect in Queue & Dashboard via React Query invalidation + Supabase realtime.
+Modes (`recommendBy`):
+- **Performance** — sort by sales/commission in selected range. Sort: High→Low / Low→High.
+- **Rotation Fairness** — uses next-available time, last-finished time, return-to-base ETA (Home Service), today's count. Sort: `Next Available First` (default), `Longest Waiting First`, `Earliest Return First` (HS only, default for HS bookings).
+- **Attendance** — score from attendance_records over date range (Yesterday / This week / All time / Custom). Sort: High→Low / Low→High.
+- **Time Availability** — next free slot today. Sort: `Earliest Available First`, `Latest Available First`, `Available Now First`.
+- **Current Booking Load** — count of today's active bookings per therapist. Sort: High→Low / Low→High.
 
-## 6. Attendance (`src/pages/Attendance.tsx` — replace stub)
-- Today's roster table per branch: Therapist | Status | Clock-in | Clock-out | Late | Under | Over | Notes | Actions.
-- Buttons: Clock In, Clock Out, Mark Present, Mark Absent, Mark Late, Mark Leave.
-- Editing updates `attendance_records` (upsert by therapist+date).
-- Queue & Schedule subscribe so availability updates in near-real-time.
+Always filters: must have skill for service, must be clocked-in & not absent/leave/off, no schedule conflicts, branch match.
 
-## 7. Customers (`src/pages/Customers.tsx` — replace stub)
-- Add Customer dialog with same fields as inline form (full name, +63 phone, email, preferred therapist, allergy checkbox+details, notes).
-- Duplicate prompt with override-note enforcement on save.
-- List with search + edit/soft-delete.
+Returns ranked list with reason text + score breakdown for tooltip.
 
-## 8. Services & Pricing (`src/pages/Services.tsx` — replace stub)
-Owner-only edit (Admins gated by `services_pricing` permission):
-- Services CRUD + activate/deactivate.
-- Per-service durations editor (rows of duration + price).
-- Branch-specific pricing override (existing `service_branch_pricing`) UI.
-- Separate **Add-ons** tab: CRUD on `service_addons`.
+## 2. Bookings page (`src/pages/Bookings.tsx`)
 
-## 9. Settings (`src/pages/Settings.tsx` — replace stub)
-- **Rooms management** (Owner): add/edit/deactivate rooms, assign branch, notes.
-- Existing settings retained.
+- Remove top filter "type" buttons.
+- Replace single-select filter row with **multi-select checkbox dropdowns** in the table header for: Branch, Status, Therapist, Service, Payment Status, Payment Method, Booking Type, Add-ons, Room/Home Service. New component `MultiSelectFilter.tsx` (popover + checkbox list + "Clear" + chip count).
+- Columns:
+  - Split combined date/time → **Date** column + **Time** column.
+  - New **Add-ons** column showing comma-separated add-on names from `booking_addons` join, or `None`.
+- Booking form (`BookingForm.tsx`): add **N/A** option in Preferred Therapist (select stores `null`, label "N/A"). Same change in Customer create dialog.
+- Therapist lineup panel inside the form: integrate the shared recommendation engine with the new "Recommend based on" + dynamic "Sorting order" controls, plus attendance-range selector when applicable. Default `Rotation Fairness → Earliest Return First` for Home Service, else `Next Available First`.
 
-## 10. Audit Log (`src/pages/SimplePages.tsx` AuditLog)
-- Surface as the canonical "Recent Activity": friendly action labels, entity name, user, branch, timestamp.
-- Filters: entity, action_type, branch, date range, user.
-- Confirm new triggers cover: bookings, customers (incl. duplicate override), payments, services, service_durations, service_addons, rooms, attendance_records, therapist_schedules, admin_permissions.
+## 3. Therapist Queue (`src/pages/TherapistQueue.tsx`)
 
-## 11. Seed Updates (`bootstrap-demo` edge function)
-- Add `service_durations` rows (30/60/90 variants with prices) for each service.
-- Add 4 sample `service_addons` (Ear Candling, Hot Towel, Aroma Upgrade, Scalp Massage).
-- Seed sample PH address rows (NCR → Metro Manila → Makati/Taguig/QC → 5 barangays each, plus Cebu and Davao samples).
-- Convert any seeded `pending` bookings → `confirmed`.
+- Recommended Lineup panel uses the same `RecommendationControls` component and shared engine — identical behavior to the Booking form.
+- Existing cards/list stay; only the lineup recommendation section is upgraded.
 
-## Technical Notes
-- New shared helpers: `src/lib/lineup.ts` (ranking algorithms), `src/lib/phone.ts` (+63 normalization), `src/lib/address.ts` (PH cascading queries).
-- New components: `src/components/booking/BookingForm.tsx`, `BookingConfirmDialog.tsx`, `CustomerCombobox.tsx`, `PhoneInput.tsx`, `PHAddressFields.tsx`, `AddonsSelector.tsx`, `TherapistLineupPanel.tsx`, `TodayGantt.tsx`.
-- Realtime: enable `supabase_realtime` for `bookings`, `attendance_records`, `therapist_schedules`.
-- Keep existing AuthContext/`can()` & BranchContext as-is.
-- All new tables: RLS enabled with policies mirroring nearest existing table.
+## 4. Therapist Schedule (`src/pages/TherapistSchedulePage.tsx`)
 
-## Out of scope (preserved as-is)
-- Auth flows, role definitions, sidebar shell, design tokens, payments/commissions logic (only minor wire-ups for new total_amount field).
+- Rename weekly columns to: **Shift Start, Shift End, Lunch/Break Start, Lunch/Break End**.
+- Per-day **Has scheduled break** checkbox. Unchecked → break fields disabled and saved as `NULL` for `break_start`/`break_end`.
+- **Copy schedule** controls:
+  - "Copy Monday to all weekdays"
+  - "Copy <day> to selected days" (multi-select day picker)
+  - "Apply same schedule to all working days"
+  - Skips days marked Off Day unless explicitly selected.
+
+## 5. Attendance (`src/pages/Attendance.tsx`)
+
+- Clock In / Clock Out button state: when `clock_in IS NOT NULL AND clock_out IS NULL` → Clock In disabled, Clock Out enabled. When both set → both disabled (no further action). Prevent duplicate writes with optimistic disable + server check on `attendance_records` row.
+- New **Request Correction** action per row → opens dialog with: Therapist (locked), Branch (locked), Field to correct (clock_in / clock_out / status), Current Value (locked), Requested Value (datetime/select), Reason (required note).
+- Submission inserts into new `attendance_corrections` table with status `pending_owner_review`.
+
+## 6. Owner notifications & correction approval flow
+
+New table `notifications` (recipient = owner) and a new top-bar **bell icon** in `AppLayout.tsx` showing unread count.
+
+- On correction submit → trigger inserts a `notifications` row for every owner.
+- Clicking the bell opens a list; clicking an item routes to `/attendance/corrections` (new page).
+- New page **`AttendanceCorrections.tsx`** lists pending requests with Approve / Reject buttons + reason field on reject.
+  - **Approve**: updates `attendance_records` with requested value; sets correction status `approved`; writes audit log.
+  - **Reject**: status `rejected`; writes audit log; no change to attendance.
+- Both actions create a notification back to the submitting Admin.
+
+## 7. Branch Management (`/branches`)
+
+Replace the stub. Owner-only full CRUD UI:
+
+- List branches with status toggle (active/deactivate via `is_active`).
+- Edit dialog: name, address, contact_number, opening_time, closing_time.
+- Tabs inside branch detail drawer:
+  - **Admins**: assign/remove via `branch_admins`.
+  - **Therapists**: assign/remove (set/clear `therapists.branch_id`).
+  - **Rooms**: add/edit/deactivate, with `notes`.
+- Admin access gated by `has_permission('branches','edit')`; default Admins get view-only.
+
+## 8. Audit Log expansion
+
+Attach `write_audit` triggers to: `attendance_records`, `attendance_corrections`, `branches`, `branch_admins`, `rooms`, `therapists` (assignment changes), `notifications` (insert only). Friendly action labels in `AuditLogPage.tsx` for: clock_in, clock_out, manual_attendance_change, correction_submitted, correction_approved, correction_rejected, branch_updated, room_updated, admin_assigned, admin_removed, therapist_assigned, therapist_removed.
+
+## 9. Database migration
+
+```text
+attendance_corrections
+  id uuid pk
+  therapist_id uuid not null
+  branch_id uuid not null
+  attendance_id uuid not null
+  field text check in ('clock_in','clock_out','status')
+  current_value text
+  requested_value text
+  reason text not null
+  status enum(pending_owner_review|approved|rejected) default pending_owner_review
+  submitted_by uuid not null
+  reviewed_by uuid
+  reviewed_at timestamptz
+  reviewer_note text
+  created_at, updated_at
+
+notifications
+  id uuid pk
+  recipient_id uuid not null  -- specific user
+  type text                    -- 'attendance_correction', etc.
+  title text
+  body text
+  link text                    -- e.g. /attendance/corrections
+  related_entity text
+  related_id uuid
+  is_read bool default false
+  created_at
+```
+
+RLS:
+- `attendance_corrections`: insert if `has_permission('attendance','edit')` and branch match; select if owner OR submitter OR branch match; update only by owner.
+- `notifications`: select/update where `recipient_id = auth.uid()`; insert via SECURITY DEFINER trigger only.
+
+Triggers:
+- After insert on `attendance_corrections` → insert `notifications` for each owner (`user_roles.role='owner'`).
+- After update of `status` to `approved` → update target `attendance_records` row using `field` + `requested_value`; insert audit row; insert notification to `submitted_by`.
+- Extend `write_audit` triggers on the tables in §8.
+
+Realtime: enable for `notifications` and `attendance_corrections`.
+
+No data destruction; existing rows untouched.
+
+## 10. Out of scope
+
+Auth, role model, design tokens, payments/commission math, seed data structure (only minor inserts if needed).
+
+## Files to add / change
+
+- New: `src/lib/recommendation.ts`, `src/components/booking/RecommendationControls.tsx`, `src/components/MultiSelectFilter.tsx`, `src/components/NotificationBell.tsx`, `src/pages/AttendanceCorrections.tsx`, `src/pages/BranchManagement.tsx`, migration SQL.
+- Edit: `src/App.tsx`, `src/components/AppLayout.tsx`, `src/components/booking/BookingForm.tsx`, `src/components/booking/TherapistLineupPanel.tsx`, `src/pages/Bookings.tsx`, `src/pages/TherapistQueue.tsx`, `src/pages/TherapistSchedulePage.tsx`, `src/pages/Attendance.tsx`, `src/pages/AuditLogPage.tsx`, `src/pages/SimplePages.tsx` (drop now-replaced exports), `src/lib/lineup.ts` (delegate to new engine).

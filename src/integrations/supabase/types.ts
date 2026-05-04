@@ -47,6 +47,60 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_corrections: {
+        Row: {
+          attendance_id: string
+          branch_id: string
+          created_at: string
+          current_value: string | null
+          field: Database["public"]["Enums"]["correction_field"]
+          id: string
+          reason: string
+          requested_value: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_note: string | null
+          status: Database["public"]["Enums"]["correction_status"]
+          submitted_by: string
+          therapist_id: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_id: string
+          branch_id: string
+          created_at?: string
+          current_value?: string | null
+          field: Database["public"]["Enums"]["correction_field"]
+          id?: string
+          reason: string
+          requested_value?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_note?: string | null
+          status?: Database["public"]["Enums"]["correction_status"]
+          submitted_by: string
+          therapist_id: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_id?: string
+          branch_id?: string
+          created_at?: string
+          current_value?: string | null
+          field?: Database["public"]["Enums"]["correction_field"]
+          id?: string
+          reason?: string
+          requested_value?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_note?: string | null
+          status?: Database["public"]["Enums"]["correction_status"]
+          submitted_by?: string
+          therapist_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       attendance_records: {
         Row: {
           branch_id: string
@@ -619,6 +673,45 @@ export type Database = {
           is_active?: boolean
           name?: string
           price?: number
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          recipient_id: string
+          related_entity: string | null
+          related_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          recipient_id: string
+          related_entity?: string | null
+          related_id?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          recipient_id?: string
+          related_entity?: string | null
+          related_id?: string | null
+          title?: string
+          type?: string
         }
         Relationships: []
       }
@@ -1250,6 +1343,8 @@ export type Database = {
         | "cancelled"
         | "no_show"
       booking_type: "walk_in" | "phone" | "online" | "repeat"
+      correction_field: "clock_in" | "clock_out" | "status"
+      correction_status: "pending_owner_review" | "approved" | "rejected"
       payment_method:
         | "cash"
         | "card"
@@ -1411,6 +1506,8 @@ export const Constants = {
         "no_show",
       ],
       booking_type: ["walk_in", "phone", "online", "repeat"],
+      correction_field: ["clock_in", "clock_out", "status"],
+      correction_status: ["pending_owner_review", "approved", "rejected"],
       payment_method: [
         "cash",
         "card",
