@@ -158,6 +158,30 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_addons: {
+        Row: {
+          addon_id: string
+          booking_id: string
+          created_at: string
+          id: string
+          price: number
+        }
+        Insert: {
+          addon_id: string
+          booking_id: string
+          created_at?: string
+          id?: string
+          price?: number
+        }
+        Update: {
+          addon_id?: string
+          booking_id?: string
+          created_at?: string
+          id?: string
+          price?: number
+        }
+        Relationships: []
+      }
       booking_status_history: {
         Row: {
           booking_id: string
@@ -195,6 +219,12 @@ export type Database = {
       }
       bookings: {
         Row: {
+          address_barangay: string | null
+          address_city: string | null
+          address_line1: string | null
+          address_line2: string | null
+          address_province: string | null
+          address_region: string | null
           booking_date: string
           booking_type: Database["public"]["Enums"]["booking_type"]
           branch_id: string
@@ -203,6 +233,7 @@ export type Database = {
           customer_id: string | null
           deleted_at: string | null
           deleted_by: string | null
+          duration_minutes: number | null
           end_time: string
           id: string
           is_deleted: boolean
@@ -216,9 +247,16 @@ export type Database = {
           start_time: string
           status: Database["public"]["Enums"]["booking_status"]
           therapist_id: string | null
+          total_amount: number
           updated_at: string
         }
         Insert: {
+          address_barangay?: string | null
+          address_city?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_province?: string | null
+          address_region?: string | null
           booking_date?: string
           booking_type?: Database["public"]["Enums"]["booking_type"]
           branch_id: string
@@ -227,6 +265,7 @@ export type Database = {
           customer_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          duration_minutes?: number | null
           end_time: string
           id?: string
           is_deleted?: boolean
@@ -240,9 +279,16 @@ export type Database = {
           start_time: string
           status?: Database["public"]["Enums"]["booking_status"]
           therapist_id?: string | null
+          total_amount?: number
           updated_at?: string
         }
         Update: {
+          address_barangay?: string | null
+          address_city?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_province?: string | null
+          address_region?: string | null
           booking_date?: string
           booking_type?: Database["public"]["Enums"]["booking_type"]
           branch_id?: string
@@ -251,6 +297,7 @@ export type Database = {
           customer_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          duration_minutes?: number | null
           end_time?: string
           id?: string
           is_deleted?: boolean
@@ -264,6 +311,7 @@ export type Database = {
           start_time?: string
           status?: Database["public"]["Enums"]["booking_status"]
           therapist_id?: string | null
+          total_amount?: number
           updated_at?: string
         }
         Relationships: [
@@ -491,8 +539,10 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
+          duplicate_override_note: string | null
           email: string | null
           full_name: string
+          has_allergy: boolean
           id: string
           is_deleted: boolean
           last_visit_date: string | null
@@ -506,8 +556,10 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          duplicate_override_note?: string | null
           email?: string | null
           full_name: string
+          has_allergy?: boolean
           id?: string
           is_deleted?: boolean
           last_visit_date?: string | null
@@ -521,8 +573,10 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          duplicate_override_note?: string | null
           email?: string | null
           full_name?: string
+          has_allergy?: boolean
           id?: string
           is_deleted?: boolean
           last_visit_date?: string | null
@@ -667,6 +721,108 @@ export type Database = {
           },
         ]
       }
+      ph_barangays: {
+        Row: {
+          city_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          city_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          city_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ph_barangays_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "ph_cities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ph_cities: {
+        Row: {
+          code: string
+          id: string
+          name: string
+          province_id: string
+        }
+        Insert: {
+          code: string
+          id?: string
+          name: string
+          province_id: string
+        }
+        Update: {
+          code?: string
+          id?: string
+          name?: string
+          province_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ph_cities_province_id_fkey"
+            columns: ["province_id"]
+            isOneToOne: false
+            referencedRelation: "ph_provinces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ph_provinces: {
+        Row: {
+          code: string
+          id: string
+          name: string
+          region_id: string
+        }
+        Insert: {
+          code: string
+          id?: string
+          name: string
+          region_id: string
+        }
+        Update: {
+          code?: string
+          id?: string
+          name?: string
+          region_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ph_provinces_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "ph_regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ph_regions: {
+        Row: {
+          code: string
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -702,6 +858,7 @@ export type Database = {
           is_active: boolean
           is_deleted: boolean
           name: string
+          notes: string | null
           updated_at: string
         }
         Insert: {
@@ -711,6 +868,7 @@ export type Database = {
           is_active?: boolean
           is_deleted?: boolean
           name: string
+          notes?: string | null
           updated_at?: string
         }
         Update: {
@@ -720,6 +878,7 @@ export type Database = {
           is_active?: boolean
           is_deleted?: boolean
           name?: string
+          notes?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -731,6 +890,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      service_addons: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          is_deleted: boolean
+          name: string
+          price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          name: string
+          price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          name?: string
+          price?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       service_branch_pricing: {
         Row: {
@@ -773,6 +968,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      service_durations: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          price: number
+          service_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes: number
+          id?: string
+          is_active?: boolean
+          price?: number
+          service_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          price?: number
+          service_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       services: {
         Row: {
@@ -1019,7 +1244,6 @@ export type Database = {
       app_role: "owner" | "admin"
       attendance_status: "present" | "absent" | "late" | "leave" | "off_duty"
       booking_status:
-        | "pending"
         | "confirmed"
         | "in_progress"
         | "completed"
@@ -1180,7 +1404,6 @@ export const Constants = {
       app_role: ["owner", "admin"],
       attendance_status: ["present", "absent", "late", "leave", "off_duty"],
       booking_status: [
-        "pending",
         "confirmed",
         "in_progress",
         "completed",
