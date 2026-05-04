@@ -448,7 +448,7 @@ export function BookingForm({ open, onClose, existing, branches, defaultBranchId
               <div>
                 <SectionTitle>Therapist lineup</SectionTitle>
                 <p className="text-xs text-muted-foreground mb-2">Recommended order based on availability, skills and rotation.</p>
-                <TherapistLineupPanel branchId={branchId || null} serviceId={serviceId || null} date={date} selectedId={therapistId || null} onSelect={setTherapistId} />
+                <TherapistLineupPanel branchId={branchId || null} serviceId={serviceId || null} date={date} isHomeService={isHome} selectedId={therapistId || null} onSelect={setTherapistId} />
               </div>
               <Separator />
               <div className="rounded-md border p-3 bg-muted/20">
