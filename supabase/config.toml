@@ -1,1 +1,4 @@
 project_id = "saaczukhejvakvtusztc"
+
+[functions.bootstrap-demo]
+verify_jwt = false
