@@ -313,9 +313,10 @@ export function BookingForm({ open, onClose, existing, branches, defaultBranchId
                       <Input type="email" value={creatingNew.email} onChange={(e) => setCreatingNew({ ...creatingNew, email: e.target.value })} />
                     </Field>
                     <Field label="Preferred therapist">
-                      <Select value={creatingNew.preferred_therapist_id} onValueChange={(v) => setCreatingNew({ ...creatingNew, preferred_therapist_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                      <Select value={creatingNew.preferred_therapist_id || "__na"} onValueChange={(v) => setCreatingNew({ ...creatingNew, preferred_therapist_id: v === "__na" ? "" : v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="__na">N/A</SelectItem>
                           {therapists.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>)}
                         </SelectContent>
                       </Select>
